@@ -1,0 +1,22 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.pyright/
+
+# Environment
+.env
+.env.*
+
+# OS
+.DS_Store
+
+# Local inputs and conversion outputs (generated)
+assets/
+output/
