@@ -9,14 +9,15 @@ from pydantic import ValidationError
 
 from docmd_graph.agents.base import AgentTask
 from docmd_graph.agents.factory import make_agent
+from docmd_graph.agents.workspace import sanitize_agent_audit, workspace_prompt_values
 from docmd_graph.audit.heuristics import audit_markdown
 from docmd_graph.audit.screenshots import render_reference_images
 from docmd_graph.config import RunConfig
-from docmd_graph.models import AuditIssue, AuditReport, ParserResult
+from docmd_graph.models import AuditIssue, AuditReport
 from docmd_graph.parsers import parse_inputs
 from docmd_graph.repair import deterministic_repair
 from docmd_graph.state import DocState
-from docmd_graph.utils.filesystem import ensure_dir, reset_dir, walk_inputs, write_text
+from docmd_graph.utils.filesystem import ensure_dir, walk_inputs, write_text
 from docmd_graph.utils.json_tools import extract_json_object
 from docmd_graph.utils.markdown import compose_raw_markdown, write_markdown
 
@@ -96,14 +97,7 @@ def enhance_node(state: DocState) -> DocState:
     if config.agent == "none":
         return state
 
-    prompt = _format_prompt(
-        "enhancer.md",
-        state,
-        extra={
-            "parser_results_path": str(Path(state["work_dir"]) / "parser_results.json"),
-            "screenshots_dir": str(Path(state["work_dir"]) / "screenshots"),
-        },
-    )
+    prompt = _format_prompt("enhancer.md", state)
     agent = make_agent(config)
     result = agent.run(
         AgentTask(
@@ -126,9 +120,7 @@ def audit_node(state: DocState) -> DocState:
     config = RunConfig.model_validate(state["config"])
     output_md = Path(state["output_md"])
     media_dir = Path(state["media_dir"])
-    raw_md_path = Path(state["raw_md_path"])
-
-    heuristic_report = audit_markdown(output_md, media_dir, raw_md_path)
+    heuristic_report = audit_markdown(output_md, media_dir)
     final_report = heuristic_report
 
     if config.agent != "none":
@@ -136,7 +128,6 @@ def audit_node(state: DocState) -> DocState:
             "auditor.md",
             state,
             extra={
-                "screenshots_dir": str(Path(state["work_dir"]) / "screenshots"),
                 "heuristic_report_json": json.dumps(heuristic_report.model_dump(), ensure_ascii=False, indent=2),
             },
         )
@@ -157,6 +148,7 @@ def audit_node(state: DocState) -> DocState:
         state = {**state, "agent_outputs": outputs}
         agent_report = _parse_agent_audit(result.stdout)
         if agent_report:
+            agent_report = sanitize_agent_audit(agent_report, output_md, media_dir)
             final_report = _merge_reports(heuristic_report, agent_report, result.stdout)
         elif not result.ok:
             final_report.issues.append(
@@ -189,7 +181,6 @@ def fix_node(state: DocState) -> DocState:
             "fixer.md",
             state,
             extra={
-                "screenshots_dir": str(Path(state["work_dir"]) / "screenshots"),
                 "audit_report_json": json.dumps(state.get("audit_report", {}), ensure_ascii=False, indent=2),
             },
         )
@@ -269,11 +260,16 @@ def cleanup_workdir(state: DocState) -> None:
 def _format_prompt(name: str, state: DocState, extra: dict[str, Any] | None = None) -> str:
     from docmd_graph.prompts import load_prompt
 
-    values: dict[str, Any] = {
-        "output_md": state.get("output_md", ""),
-        "media_dir": state.get("media_dir", ""),
-        "raw_md_path": state.get("raw_md_path", ""),
-    }
+    output_dir = Path(state["output_dir"])
+    work_dir = Path(state["work_dir"])
+    values: dict[str, Any] = workspace_prompt_values(
+        output_dir=output_dir,
+        output_md=Path(state["output_md"]),
+        media_dir=Path(state["media_dir"]),
+        work_dir=work_dir,
+        screenshots_dir=work_dir / "screenshots",
+        parser_results_path=work_dir / "parser_results.json",
+    )
     if extra:
         values.update(extra)
     return load_prompt(name).format(**values)

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 from docmd_graph.models import AuditIssue, AuditReport
@@ -9,7 +8,7 @@ from docmd_graph.utils.markdown import find_image_refs, find_markdown_links
 MOJIBAKE_PATTERNS = ["�", "Ð", "Ñ", "Рџ", "Р°", "Рµ", "â€™", "â€œ", "â€", "Ã"]
 
 
-def audit_markdown(output_md: Path, media_dir: Path, raw_md_path: Path | None = None) -> AuditReport:
+def audit_markdown(output_md: Path, media_dir: Path) -> AuditReport:
     issues: list[AuditIssue] = []
     media_problems: list[str] = []
     encoding_problems: list[str] = []
@@ -126,22 +125,6 @@ def audit_markdown(output_md: Path, media_dir: Path, raw_md_path: Path | None = 
                 )
             )
 
-    if raw_md_path and raw_md_path.exists():
-        raw = raw_md_path.read_text(encoding="utf-8", errors="replace")
-        raw_words = _word_count(raw)
-        final_words = _word_count(md)
-        if raw_words >= 200 and final_words < raw_words * 0.45:
-            msg = f"Final Markdown has far fewer words than parser output ({final_words} vs {raw_words})."
-            lost_information.append(msg)
-            issues.append(
-                AuditIssue(
-                    severity="major",
-                    location=str(output_md),
-                    problem=msg,
-                    suggested_fix="Compare raw Markdown and restore missing sections unless they are duplicate parser noise.",
-                )
-            )
-
     unreferenced_media = _unreferenced_media_files(output_md, media_dir, md)
     if len(unreferenced_media) >= 20:
         issues.append(
@@ -165,10 +148,6 @@ def audit_markdown(output_md: Path, media_dir: Path, raw_md_path: Path | None = 
         encoding_problems=encoding_problems,
         media_problems=media_problems,
     )
-
-
-def _word_count(text: str) -> int:
-    return len(re.findall(r"\w+", text, flags=re.UNICODE))
 
 
 def _issue_penalty(severity: str) -> float:

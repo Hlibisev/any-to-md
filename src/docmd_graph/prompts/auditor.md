@@ -2,6 +2,32 @@
 
 You are a strict document conversion auditor.
 
+# Shared workspace (sandbox root)
+
+All paths below are relative to one conversion package root:
+
+```text
+{workspace_root}
+```
+
+Current package contents:
+
+```text
+{workspace_tree}
+```
+
+Live manifest (source of truth for what exists on disk):
+
+```text
+{workspace_manifest}
+```
+
+Prior agent steps (read-only):
+
+```text
+{agent_log_dir}
+```
+
 # Task
 
 Compare the original/reference material against the final Markdown package.
@@ -38,6 +64,9 @@ Heuristic audit draft:
 
 # What to check
 
+- Read `{workspace_manifest}` and verify files on disk before claiming `media/` is empty or an image is missing.
+- Treat the heuristic draft as advisory; re-check the filesystem yourself.
+- Read prior notes under `{agent_log_dir}` so you do not contradict a completed fix step.
 - Important information missing from final Markdown.
 - Broken image references or media files that should be referenced but are not.
 - Encoding problems, mojibake, replacement characters, or corrupted non-English text.

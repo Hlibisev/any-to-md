@@ -32,7 +32,12 @@ class CursorAgent:
         image_note = ""
         if rel_images:
             image_note = " Reference images are available at: " + ", ".join(rel_images) + "."
-        short_prompt = f"Read and follow the instructions in {rel_prompt}.{image_note} Complete the task exactly."
+        short_prompt = (
+            f"Your sandbox root is the current working directory (.). "
+            f"Read and follow the instructions in {rel_prompt}.{image_note} "
+            f"Use paths relative to the package root and read _work/workspace_manifest.txt first. "
+            f"Complete the task exactly."
+        )
 
         cmd = [
             binary,
