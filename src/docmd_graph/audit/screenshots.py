@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import shutil
+import tempfile
+import textwrap
 from pathlib import Path
 
 from docmd_graph.config import RunConfig
@@ -60,15 +62,45 @@ def _render_pdf(path: Path, output_dir: Path, dpi: int, max_pages: int) -> list[
     return made
 
 
+def _libreoffice_user_installation(locale: str = "ru-RU") -> str | None:
+    """Create a headless LibreOffice profile with a document default locale.
+
+    Legacy .doc charts often embed WMF text with DEFAULT/OEM charset. Without a
+    matching default locale, LibreOffice maps that text as Latin-1 and Cyrillic
+    labels become mojibake (e.g. "В целом" -> "Â öåëîì").
+    """
+    profile_root = Path(tempfile.mkdtemp(prefix="docmd-lo-profile-"))
+    registry = profile_root / "user" / "registrymodifications.xcu"
+    registry.parent.mkdir(parents=True, exist_ok=True)
+    registry.write_text(
+        textwrap.dedent(
+            f"""\
+            <?xml version="1.0" encoding="UTF-8"?>
+            <oor:component-data xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" oor:name="Linguistic" oor:package="org.openoffice.Office">
+              <node oor:name="General">
+                <prop oor:name="DefaultLocale" oor:type="xs:string">
+                  <value>{locale}</value>
+                </prop>
+              </node>
+            </oor:component-data>
+            """
+        ),
+        encoding="utf-8",
+    )
+    return f"file://{profile_root}"
+
+
 def _office_to_pdf(path: Path, output_dir: Path, diagnostics: list[str]) -> Path | None:
     binary = shutil.which("soffice") or shutil.which("libreoffice")
     if not binary:
         diagnostics.append(f"LibreOffice/soffice not found; cannot render screenshots for {path.name}.")
         return None
-    result = run_command(
-        [binary, "--headless", "--convert-to", "pdf", "--outdir", str(output_dir), str(path)],
-        timeout_s=180,
-    )
+    cmd = [binary, "--headless"]
+    user_install = _libreoffice_user_installation()
+    if user_install:
+        cmd.append(f"-env:UserInstallation={user_install}")
+    cmd.extend(["--convert-to", "pdf", "--outdir", str(output_dir), str(path)])
+    result = run_command(cmd, timeout_s=180)
     if result.returncode != 0:
         diagnostics.append(f"LibreOffice failed for {path.name}: {result.stderr.strip() or result.stdout.strip()}")
         return None
