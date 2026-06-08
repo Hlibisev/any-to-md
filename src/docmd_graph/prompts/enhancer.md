@@ -63,14 +63,16 @@ Reference screenshots/images may be available at:
 # Rules
 
 1. Work only inside this package root. Read `_work/` for reference; edit only `{output_md}` and files under `{media_dir}`.
-2. Preserve all important source information. Do not summarize away values, table cells, captions, footnotes, dates, identifiers, headings, formulas, or code blocks.
-3. Improve readability: headings, paragraphs, tables, bullet lists, and image references should be clean Markdown.
-4. Keep the source order unless there is an obvious parser ordering error.
-5. Use relative image links that work from `{output_md}`, preferably `media/...`.
-6. Do not invent missing text. Use `[unclear]` for unreadable or ambiguous source content.
-7. For lab-result images or medical test forms, transcribe visible test names, values, units, flags, and reference ranges. Do not give diagnosis, treatment advice, or medical interpretation.
-8. Keep original language and encoding. Do not transliterate or translate unless the source already contains both languages.
-9. Before adding `media/...` image links, copy or create the files under `{media_dir}` (for example from `{screenshots_dir}`).
+2. **The goal is a text-first Markdown file.** Convert all readable content (tables, values, text, lists) into Markdown text. The output should be useful *without* any images.
+3. **Do NOT embed full-page screenshots** into `{output_md}`. The files under `{screenshots_dir}` are reference material for you to read — they are NOT content to paste into the final document.
+4. **Only save images to `{media_dir}` when they contain information that cannot be expressed as text** — for example charts, graphs, scatter plots, histograms, signatures, stamps, logos, or photos. Crop or extract just the relevant graphic, not the entire page.
+5. Preserve all important source information. Do not summarize away values, table cells, captions, footnotes, dates, identifiers, headings, formulas, or code blocks.
+6. Improve readability: headings, paragraphs, tables, bullet lists, and image references should be clean Markdown.
+7. Keep the source order unless there is an obvious parser ordering error.
+8. Use relative image links that work from `{output_md}`, preferably `media/...`.
+9. Do not invent missing text. Use `[unclear]` for unreadable or ambiguous source content.
+10. For lab-result images or medical test forms, transcribe visible test names, values, units, flags, and reference ranges. Do not give diagnosis, treatment advice, or medical interpretation.
+11. Keep original language and encoding. Do not transliterate or translate unless the source already contains both languages.
 
 # Final response
 

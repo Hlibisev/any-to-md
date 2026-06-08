@@ -67,6 +67,7 @@ Heuristic audit draft:
 - Read `{workspace_manifest}` and verify files on disk before claiming `media/` is empty or an image is missing.
 - Treat the heuristic draft as advisory; re-check the filesystem yourself.
 - Read prior notes under `{agent_log_dir}` so you do not contradict a completed fix step.
+- **The output must be text-first.** Full-page screenshot embeds (`![page](media/page-NNN.png)`) are a blocker — all readable content must be Markdown text. Only charts/graphs/photos that cannot be expressed as text belong in `media/`.
 - Important information missing from final Markdown.
 - Broken image references or media files that should be referenced but are not.
 - Encoding problems, mojibake, replacement characters, or corrupted non-English text.
