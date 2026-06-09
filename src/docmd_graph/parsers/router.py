@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from docmd_graph.config import ParserName, RunConfig
+from docmd_graph.config import RunConfig
 from docmd_graph.models import ParserResult
 from docmd_graph.utils.filesystem import safe_relative
 
 from .base import IMAGE_EXTS, OFFICE_EXTS, PDF_EXTS, TEXT_EXTS, DocumentParser, ParserError
-from .docling_parser import DoclingParser
 from .image_parser import ImageParser
 from .markitdown_parser import MarkItDownParser
 from .pandoc_parser import PandocParser
@@ -18,7 +17,6 @@ PARSERS: dict[str, type[DocumentParser]] = {
     "pymupdf4llm": PyMuPDF4LLMParser,
     "pandoc": PandocParser,
     "markitdown": MarkItDownParser,
-    "docling": DoclingParser,
     "image": ImageParser,
     "text": TextParser,
 }
@@ -27,16 +25,16 @@ PARSERS: dict[str, type[DocumentParser]] = {
 def parser_order(path: Path) -> list[str]:
     ext = path.suffix.lower()
     if ext in PDF_EXTS:
-        return ["pymupdf4llm", "docling", "markitdown"]
+        return ["pymupdf4llm", "markitdown"]
     if ext in OFFICE_EXTS:
         if ext in {".docx", ".doc", ".odt", ".rtf"}:
-            return ["pandoc", "markitdown", "docling"]
-        return ["markitdown", "docling", "pandoc"]
+            return ["pandoc", "markitdown"]
+        return ["markitdown", "pandoc"]
     if ext in IMAGE_EXTS:
-        return ["image", "markitdown", "docling"]
+        return ["image", "markitdown"]
     if ext in TEXT_EXTS:
         return ["text", "markitdown"]
-    return ["markitdown", "docling", "pandoc", "text"]
+    return ["markitdown", "pandoc", "text"]
 
 
 def parse_inputs(

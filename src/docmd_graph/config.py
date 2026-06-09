@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-ParserName = Literal["auto", "pymupdf4llm", "pandoc", "markitdown", "docling", "image", "text"]
+ParserName = Literal["auto", "pymupdf4llm", "pandoc", "markitdown", "image", "text"]
 AgentName = Literal["none", "codex", "cursor"]
 
 

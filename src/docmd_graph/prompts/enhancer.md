@@ -60,6 +60,10 @@ Reference screenshots/images may be available at:
 {screenshots_dir}
 ```
 
+**Visual inspection:** Read (open) reference screenshots and any images already in `{media_dir}` using the Read tool to verify extracted images are complete — not cropped, truncated, or mismatched. If an extracted image is clipped (missing axes, labels, legends, or part of the chart), re-extract it properly.
+
+If `{media_dir}` already contains deterministic graph crops (extracted by anchor-based cropping before your step), **reuse them**. Do not re-crop charts that already look correct. Only re-extract if visual inspection shows a real defect.
+
 # Rules
 
 1. Work only inside this package root. Read `_work/` for reference; edit only `{output_md}` and files under `{media_dir}`.

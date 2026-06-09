@@ -28,3 +28,8 @@ uv run pyright
 - Preserve source information. Do not summarize away lab values, table cells, references, captions, units, dates, or identifiers.
 - Mark unreadable source content as `[unclear]` instead of guessing.
 - This package must not provide medical advice when converting lab-result images.
+
+
+## Usage
+
+By default use opus-4.6-medium with cusror agent

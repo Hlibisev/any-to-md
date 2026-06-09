@@ -67,6 +67,11 @@ Heuristic audit draft:
 - Read `{workspace_manifest}` and verify files on disk before claiming `media/` is empty or an image is missing.
 - Treat the heuristic draft as advisory; re-check the filesystem yourself.
 - Read prior notes under `{agent_log_dir}` so you do not contradict a completed fix step.
+- **Visual inspection is mandatory.** Read (open) every image file in `{media_dir}` and every reference screenshot in `{screenshots_dir}` using the Read tool. Compare each extracted media image against the corresponding source screenshot page to verify:
+  - The image is not cropped or truncated (axes, labels, legends, titles must be fully visible).
+  - The image matches its caption/description in `{output_md}`.
+  - The image contains the correct content (not a fragment of another page or table).
+  - Mark cropped, mismatched, or wrong images as **major** issues.
 - **The output must be text-first.** Full-page screenshot embeds (`![page](media/page-NNN.png)`) are a blocker — all readable content must be Markdown text. Only charts/graphs/photos that cannot be expressed as text belong in `media/`.
 - Important information missing from final Markdown.
 - Broken image references or media files that should be referenced but are not.

@@ -54,6 +54,8 @@ Reference screenshots/images folder:
 {screenshots_dir}
 ```
 
+**Visual inspection:** Read (open) reference screenshots and images in `{media_dir}` using the Read tool. If audit reports cropped, truncated, or mismatched images, visually verify the problem and re-extract correctly from the source screenshots.
+
 Audit report:
 
 ```json

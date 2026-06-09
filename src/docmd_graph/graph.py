@@ -13,6 +13,7 @@ from docmd_graph.agents.workspace import sanitize_agent_audit, workspace_prompt_
 from docmd_graph.audit.heuristics import audit_markdown
 from docmd_graph.audit.screenshots import render_reference_images
 from docmd_graph.config import RunConfig
+from docmd_graph.graph_crops import crop_by_anchors, crops_markdown, parse_agent_crop_specs
 from docmd_graph.models import AuditIssue, AuditReport
 from docmd_graph.parsers import parse_inputs
 from docmd_graph.repair import deterministic_repair
@@ -32,11 +33,13 @@ def build_graph():
 
     builder = StateGraph(DocState)
     builder.add_node("parse", parse_node)
+    builder.add_node("extract_graphs", extract_graphs_node)
     builder.add_node("enhance", enhance_node)
     builder.add_node("audit", audit_node)
     builder.add_node("fix", fix_node)
     builder.add_edge(START, "parse")
-    builder.add_edge("parse", "enhance")
+    builder.add_edge("parse", "extract_graphs")
+    builder.add_edge("extract_graphs", "enhance")
     builder.add_edge("enhance", "audit")
     builder.add_conditional_edges("audit", route_after_audit, {"fix": "fix", "end": END})
     builder.add_edge("fix", "audit")
@@ -88,6 +91,74 @@ def parse_node(state: DocState) -> DocState:
     }
 
 
+def _collect_agent_images(state: DocState) -> list[Path]:
+    """Collect both source screenshots and extracted media images for agent vision."""
+    images = [Path(p) for p in state.get("screenshots", [])]
+    media_dir = Path(state["media_dir"])
+    if media_dir.is_dir():
+        for f in sorted(media_dir.iterdir()):
+            if f.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".webp"} and f not in images:
+                images.append(f)
+    return images
+
+
+def extract_graphs_node(state: DocState) -> DocState:
+    """Ask an agent to find chart anchors in screenshots, then crop deterministically."""
+    config = RunConfig.model_validate(state["config"])
+    if config.agent == "none":
+        return state
+
+    screenshots = state.get("screenshots", [])
+    if not screenshots:
+        return state
+
+    work_dir = Path(state["work_dir"])
+    media_dir = Path(state["media_dir"])
+    pdfs = sorted(p for p in (work_dir / "screenshots").glob("*.pdf") if p.is_file())
+    if not pdfs:
+        return state
+
+    prompt = _format_prompt("graph_finder.md", state)
+    agent = make_agent(config)
+    result = agent.run(
+        AgentTask(
+            role="graph-finder",
+            prompt=prompt,
+            cwd=Path(state["output_dir"]),
+            timeout_s=config.agent_timeout_s,
+            allow_edits=False,
+            images=[Path(p) for p in screenshots],
+            output_file=work_dir / "agent" / "graph-finder.txt",
+        )
+    )
+    outputs = list(state.get("agent_outputs", []))
+    outputs.append(result.__dict__)
+
+    diagnostics = list(state.get("diagnostics", []))
+    specs = parse_agent_crop_specs(result.stdout)
+    if not specs:
+        diagnostics.append("Graph finder: agent returned no crop specs.")
+        return {**state, "agent_outputs": outputs, "diagnostics": diagnostics}
+
+    write_text(
+        work_dir / "graph_crop_specs.json",
+        json.dumps([s.__dict__ for s in specs], ensure_ascii=False, indent=2),
+    )
+
+    media_rels, crop_diagnostics = crop_by_anchors(specs, work_dir, media_dir)
+    diagnostics.extend(crop_diagnostics)
+
+    if media_rels:
+        md_snippet = crops_markdown(specs, media_rels)
+        output_md = Path(state["output_md"])
+        if output_md.exists():
+            existing = output_md.read_text(encoding="utf-8")
+            if md_snippet.strip() not in existing:
+                write_markdown(output_md, existing.rstrip() + "\n\n" + md_snippet)
+
+    return {**state, "agent_outputs": outputs, "diagnostics": diagnostics}
+
+
 def enhance_node(state: DocState) -> DocState:
     config = RunConfig.model_validate(state["config"])
     output_md = Path(state["output_md"])
@@ -106,7 +177,7 @@ def enhance_node(state: DocState) -> DocState:
             cwd=Path(state["output_dir"]),
             timeout_s=config.agent_timeout_s,
             allow_edits=True,
-            images=[Path(p) for p in state.get("screenshots", [])],
+            images=_collect_agent_images(state),
             output_file=Path(state["work_dir"]) / "agent" / "enhance.txt",
         )
     )
@@ -139,7 +210,7 @@ def audit_node(state: DocState) -> DocState:
                 cwd=Path(state["output_dir"]),
                 timeout_s=config.agent_timeout_s,
                 allow_edits=False,
-                images=[Path(p) for p in state.get("screenshots", [])],
+                images=_collect_agent_images(state),
                 output_file=Path(state["work_dir"]) / "agent" / f"audit-round-{state.get('audit_round', 0)}.txt",
             )
         )
@@ -192,7 +263,7 @@ def fix_node(state: DocState) -> DocState:
                 cwd=Path(state["output_dir"]),
                 timeout_s=config.agent_timeout_s,
                 allow_edits=True,
-                images=[Path(p) for p in state.get("screenshots", [])],
+                images=_collect_agent_images(state),
                 output_file=Path(state["work_dir"]) / "agent" / f"fix-round-{state.get('audit_round', 0)}.txt",
             )
         )

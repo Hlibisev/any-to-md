@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 from PIL import Image
@@ -8,7 +7,6 @@ from PIL import Image
 from docmd_graph.config import RunConfig
 from docmd_graph.models import ParserResult
 from docmd_graph.utils.filesystem import copy_file_unique, safe_relative, slugify
-from docmd_graph.utils.subprocess import run_command
 
 from .base import IMAGE_EXTS, DocumentParser
 
@@ -39,7 +37,7 @@ class ImageParser(DocumentParser):
             md_lines.extend([f"- Dimensions: {width} x {height}px", ""])
 
         if config.enable_ocr:
-            ocr_text = self._ocr(path, config.ocr_languages, diagnostics)
+            ocr_text = self._ocr_gcv(path, diagnostics)
             if ocr_text.strip():
                 md_lines.extend([
                     "#### OCR transcript",
@@ -52,7 +50,7 @@ class ImageParser(DocumentParser):
             else:
                 md_lines.append("> OCR was enabled, but no text was extracted.\n")
         else:
-            md_lines.append("> Image copied to media. Enable `--ocr` for best-effort local Tesseract transcription.\n")
+            md_lines.append("> Image copied to media. Enable `--ocr` for Google Cloud Vision OCR.\n")
 
         return ParserResult(
             source_path=str(path),
@@ -62,19 +60,24 @@ class ImageParser(DocumentParser):
             diagnostics=diagnostics,
         )
 
-    def _ocr(self, path: Path, languages: str, diagnostics: list[str]) -> str:
-        if not shutil.which("tesseract"):
-            diagnostics.append("Tesseract executable not found; image OCR skipped.")
-            return ""
+    def _ocr_gcv(self, path: Path, diagnostics: list[str]) -> str:
         try:
-            result = run_command(
-                ["tesseract", str(path), "stdout", "-l", languages],
-                timeout_s=180,
-            )
+            from google.cloud import vision  # noqa: PLC0415
+        except ImportError:
+            diagnostics.append("google-cloud-vision not installed; OCR skipped. Install with: pip install google-cloud-vision")
+            return ""
+
+        try:
+            client = vision.ImageAnnotatorClient()
+            content = path.read_bytes()
+            image = vision.Image(content=content)
+            response = client.document_text_detection(image=image)
+
+            if response.error.message:
+                diagnostics.append(f"GCV error: {response.error.message}")
+                return ""
+
+            return response.full_text_annotation.text or ""
         except Exception as exc:  # noqa: BLE001 - optional OCR
-            diagnostics.append(f"Tesseract failed: {exc}")
+            diagnostics.append(f"GCV OCR failed: {exc}")
             return ""
-        if result.returncode != 0:
-            diagnostics.append(f"Tesseract returned {result.returncode}: {result.stderr.strip()}")
-            return ""
-        return result.stdout

@@ -31,7 +31,13 @@ class CursorAgent:
         rel_images = [safe_relative(Path(p), task.cwd) for p in task.images if Path(p).exists()]
         image_note = ""
         if rel_images:
-            image_note = " Reference images are available at: " + ", ".join(rel_images) + "."
+            image_note = (
+                " IMPORTANT: You MUST use the Read tool to visually inspect each of these image files"
+                " (the Read tool supports PNG/JPG/JPEG/GIF/WEBP). Compare extracted media images against"
+                " source screenshots to verify correctness, cropping, and completeness. Image files: "
+                + ", ".join(rel_images)
+                + "."
+            )
         short_prompt = (
             f"Your sandbox root is the current working directory (.). "
             f"Read and follow the instructions in {rel_prompt}.{image_note} "
